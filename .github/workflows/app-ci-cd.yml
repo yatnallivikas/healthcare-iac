@@ -17,6 +17,8 @@ permissions:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    outputs:
+      ingress_url: ${{ steps.publish-ingress.outputs.ingress_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,3 +97,28 @@ jobs:
           WORKSPACE: dev
         run: |
           ./scripts/deploy_apps_to_eks.sh
+
+      - name: Publish ingress URL
+        id: publish-ingress
+        env:
+          NAMESPACE: healthcare-apps
+          INGRESS_NAME: healthcare-platform
+        run: |
+          set -euo pipefail
+          HOST=$(kubectl -n "$NAMESPACE" get ingress "$INGRESS_NAME" -o jsonpath='{.spec.rules[0].host}')
+          ADDRESS=$(kubectl -n "$NAMESPACE" get ingress "$INGRESS_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          if [ -z "$ADDRESS" ]; then
+            ADDRESS=$(kubectl -n "$NAMESPACE" get ingress "$INGRESS_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          fi
+          URL="https://${HOST:-$ADDRESS}"
+          echo "ingress_url=${URL}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deployment URLs"
+            echo ""
+            echo "- Ingress Host: ${HOST:-N/A}"
+            echo "- Load Balancer: ${ADDRESS:-N/A}"
+            echo "- Base URL: ${URL}"
+            echo "- Grafana: ${URL}/grafana"
+            echo "- Appointment API: ${URL}/appointments"
+            echo "- Patient API: ${URL}/patients"
+          } >> "$GITHUB_STEP_SUMMARY"
