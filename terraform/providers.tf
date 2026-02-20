@@ -1,2 +1,10 @@
-// Placeholder provider configuration to keep init/plan fully local-safe.
-provider "null" {}
+provider "aws" {
+  region = "ap-south-1"
+
+  default_tags {
+    tags = {
+      Project   = "healthcare"
+      ManagedBy = "terraform"
+    }
+  }
+}
