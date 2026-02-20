@@ -41,6 +41,16 @@ alertmanager:
 
 kubeStateMetrics:
   enabled: true
+nodeExporter:
+  enabled: true
+
+rbac:
+  create: true
+
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: CHANGEME-CHANGE
 
 nodeExporter:
   enabled: true
@@ -61,6 +71,14 @@ grafana:
       access: proxy
       url: http://loki.monitoring.svc.cluster.local:3100
       isDefault: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+
       editable: false
   sidecar:
     dashboards:

@@ -1,0 +1,73 @@
+{
+  "id": null,
+  "uid": "app-logs-overview",
+  "title": "Healthcare App Logs",
+  "tags": ["kubernetes", "loki", "logs"],
+  "schemaVersion": 38,
+  "version": 1,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "textbox",
+        "label": "Namespace",
+        "query": "healthcare-apps",
+        "current": {
+          "text": "healthcare-apps",
+          "value": "healthcare-apps"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Log Volume (lines/min)",
+      "id": 10,
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "targets": [
+        {
+          "expr": "sum by (app) (rate({namespace=\"$namespace\"}[1m]))",
+          "legendFormat": "{{app}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "logs/s",
+          "custom": {
+            "drawStyle": "line"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Application Logs",
+      "id": 11,
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "expr": "{namespace=\"$namespace\"}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

@@ -28,6 +28,23 @@ promtail:
   enabled: true
   daemonset:
     extraScrapeConfigs:
+      - job_name: kubernetes-pods-app
+        kubernetes_sd_configs:
+          - role: pod
+        pipeline_stages:
+          - docker: {}
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_label_app]
+            target_label: app
+            separator: ";"
+            replacement: "$1"
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node
+          - action: replace
+            source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
       - job_name: kubernetes-pods
         pipeline_stages:
           - docker: {}
