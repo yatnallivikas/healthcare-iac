@@ -1,0 +1,18 @@
+{
+  "name": "appointment-service",
+  "version": "1.0.0",
+  "description": "Appointment scheduling microservice",
+  "main": "appointment-service.js",
+  "scripts": {
+    "start": "node appointment-service.js",
+    "dev": "nodemon appointment-service.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
