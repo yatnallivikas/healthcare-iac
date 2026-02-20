@@ -17,7 +17,9 @@ resource "aws_subnet" "public_a" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "public-a-${var.environment}"
+    Name                                        = "public-a-${var.environment}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                    = "1"
   }
 }
 
@@ -28,7 +30,9 @@ resource "aws_subnet" "public_b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "public-b-${var.environment}"
+    Name                                        = "public-b-${var.environment}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"                    = "1"
   }
 }
 
@@ -40,7 +44,9 @@ resource "aws_subnet" "private_a" {
   availability_zone = "ap-south-1a"
 
   tags = {
-    Name = "private-a-${var.environment}"
+    Name                                        = "private-a-${var.environment}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"           = "1"
   }
 }
 
@@ -50,7 +56,9 @@ resource "aws_subnet" "private_b" {
   availability_zone = "ap-south-1b"
 
   tags = {
-    Name = "private-b-${var.environment}"
+    Name                                        = "private-b-${var.environment}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb"           = "1"
   }
 }
 
@@ -108,4 +116,31 @@ resource "aws_route_table_association" "private_a_assoc" {
 resource "aws_route_table_association" "private_b_assoc" {
   subnet_id      = aws_subnet.private_b.id
   route_table_id = aws_route_table.private_rt.id
+}
+
+# ---------- NAT Gateway (single, for cost savings) ----------
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name = "nat-eip-${var.environment}"
+  }
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_a.id
+
+  tags = {
+    Name = "nat-gw-${var.environment}"
+  }
+
+  depends_on = [aws_internet_gateway.igw]
+}
+
+resource "aws_route" "private_nat_access" {
+  route_table_id         = aws_route_table.private_rt.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat.id
 }

@@ -7,6 +7,13 @@ on:
         description: "Image tag to promote"
         required: true
 
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+
 jobs:
   promote:
     runs-on: ubuntu-latest
@@ -15,7 +22,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Promote artifact to prod (placeholder)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Connect to prod cluster
         run: |
-          echo "Promoting ${{ inputs.image_tag }} to prod (TODO: kubectl, helm, smoke tests)"
-          echo "Run post-deploy smoke tests (TODO)"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-prod
+
+      - name: Deploy nginx test to prod
+        run: |
+          IMAGE_TAG="${{ inputs.image_tag }}"
+          kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: nginx-test
+            namespace: prod
+            labels:
+              app: nginx-test
+              version: "${IMAGE_TAG}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: nginx-test
+            template:
+              metadata:
+                labels:
+                  app: nginx-test
+                  version: "${IMAGE_TAG}"
+              spec:
+                containers:
+                - name: nginx
+                  image: nginx:1.27-alpine
+                  ports:
+                  - containerPort: 80
+          EOF
+          kubectl rollout status deployment/nginx-test -n prod --timeout=120s
+
+      - name: Post-deploy smoke tests
+        run: |
+          kubectl get pods -n prod -l app=nginx-test
+          echo "Smoke tests passed"
