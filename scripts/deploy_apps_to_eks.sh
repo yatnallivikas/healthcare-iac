@@ -5,6 +5,9 @@ WORKSPACE="${WORKSPACE:-dev}"
 AWS_REGION="${AWS_REGION:-ap-south-1}"
 TF_DIR="${TF_DIR:-$(git rev-parse --show-toplevel)/terraform}"
 KUSTOMIZE_PATH="${KUSTOMIZE_PATH:-$(git rev-parse --show-toplevel)/k8s/apps}"
+APP_NAMESPACE="${APP_NAMESPACE:-healthcare-apps}"
+ECR_PULL_SECRET_NAME="${ECR_PULL_SECRET_NAME:-aws-ecr}"
+CREATE_ECR_PULL_SECRET="${CREATE_ECR_PULL_SECRET:-true}"
 
 if ! command -v aws >/dev/null 2>&1; then
   echo "aws CLI not found" >&2
@@ -66,6 +69,8 @@ fi
 echo "Verifying cluster connectivity..."
 kubectl get nodes || true
 
+kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 KUSTOMIZE_PARENT="$(cd "$(dirname "$KUSTOMIZE_PATH")" && pwd)"
@@ -81,6 +86,17 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 APPOINTMENT_IMAGE="${APPOINTMENT_IMAGE:-${ECR_REGISTRY}/appointment-service:${IMAGE_TAG}}"
 PATIENT_IMAGE="${PATIENT_IMAGE:-${ECR_REGISTRY}/patient-service:${IMAGE_TAG}}"
 
+if [[ "${CREATE_ECR_PULL_SECRET}" == "true" ]]; then
+  echo "Ensuring image pull secret ${ECR_PULL_SECRET_NAME} exists in namespace ${APP_NAMESPACE}"
+  ECR_PASSWORD=$(aws ecr get-login-password --region "$AWS_REGION")
+  kubectl -n "$APP_NAMESPACE" create secret docker-registry "$ECR_PULL_SECRET_NAME" \
+    --docker-server="${ECR_REGISTRY}" \
+    --docker-username=AWS \
+    --docker-password="${ECR_PASSWORD}" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  unset ECR_PASSWORD
+fi
+
 pushd "$TMP_KUSTOMIZE_PATH" >/dev/null
 kustomize edit set image appointment-service="${APPOINTMENT_IMAGE}"
 kustomize edit set image patient-service="${PATIENT_IMAGE}"
@@ -90,5 +106,5 @@ echo "Deploying application manifests via kustomize build"
 kustomize build "$TMP_KUSTOMIZE_PATH" | kubectl apply -f -
 
 echo "Deployment completed. Namespaces and workloads:"
-kubectl get ns healthcare-apps || true
-kubectl get all -n healthcare-apps
+kubectl get ns "$APP_NAMESPACE" || true
+kubectl get all -n "$APP_NAMESPACE"
