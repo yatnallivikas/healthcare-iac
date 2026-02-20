@@ -32,6 +32,20 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Ensure ECR repositories exist
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          for repo in appointment-service patient-service; do
+            if aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1; then
+              echo "ECR repo $repo already exists"
+            else
+              echo "Creating ECR repo $repo"
+              aws ecr create-repository --repository-name "$repo" --image-scanning-configuration scanOnPush=true --region "$AWS_REGION"
+            fi
+          done
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:

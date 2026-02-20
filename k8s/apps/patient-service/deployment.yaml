@@ -20,6 +20,8 @@ spec:
         app.kubernetes.io/component: api
         app.kubernetes.io/part-of: healthcare-platform
     spec:
+      imagePullSecrets:
+        - name: aws-ecr
       containers:
         - name: patient-service
           image: patient-service
