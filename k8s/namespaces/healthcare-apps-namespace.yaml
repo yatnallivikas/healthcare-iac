@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: healthcare-apps
+  labels:
+    app.kubernetes.io/part-of: healthcare-platform
+    environment: dev
