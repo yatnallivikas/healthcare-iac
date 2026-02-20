@@ -103,7 +103,7 @@ kustomize edit set image patient-service="${PATIENT_IMAGE}"
 popd >/dev/null
 
 echo "Deploying application manifests via kustomize build"
-kustomize build "$TMP_KUSTOMIZE_PATH" | kubectl apply -f -
+kustomize build --load-restrictor=LoadRestrictionsNone "$TMP_KUSTOMIZE_PATH" | kubectl apply -f -
 
 echo "Deployment completed. Namespaces and workloads:"
 kubectl get ns "$APP_NAMESPACE" || true
