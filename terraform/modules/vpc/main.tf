@@ -4,7 +4,8 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 
   tags = {
-    Name = "healthcare-${var.environment}-vpc"
+    Name                                        = "healthcare-${var.environment}-vpc"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }
 
@@ -39,9 +40,10 @@ resource "aws_subnet" "public_b" {
 # ---------- Private Subnets ----------
 
 resource "aws_subnet" "private_a" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.11.0/24"
-  availability_zone = "ap-south-1a"
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.11.0/24"
+  availability_zone       = "ap-south-1a"
+  map_public_ip_on_launch = false
 
   tags = {
     Name                                        = "private-a-${var.environment}"
@@ -51,9 +53,10 @@ resource "aws_subnet" "private_a" {
 }
 
 resource "aws_subnet" "private_b" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.12.0/24"
-  availability_zone = "ap-south-1b"
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.12.0/24"
+  availability_zone       = "ap-south-1b"
+  map_public_ip_on_launch = false
 
   tags = {
     Name                                        = "private-b-${var.environment}"
@@ -118,7 +121,7 @@ resource "aws_route_table_association" "private_b_assoc" {
   route_table_id = aws_route_table.private_rt.id
 }
 
-# ---------- NAT Gateway (single, for cost savings) ----------
+# ---------- NAT Gateway (single AZ for cost optimization) ----------
 
 resource "aws_eip" "nat" {
   domain = "vpc"
@@ -143,4 +146,6 @@ resource "aws_route" "private_nat_access" {
   route_table_id         = aws_route_table.private_rt.id
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.nat.id
+
+  depends_on = [aws_nat_gateway.nat]
 }
