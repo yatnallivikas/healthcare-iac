@@ -98,27 +98,47 @@ jobs:
         run: |
           ./scripts/deploy_apps_to_eks.sh
 
-      - name: Publish ingress URL
-        id: publish-ingress
+      - name: Publish service endpoints
+        id: publish-services
         env:
-          NAMESPACE: healthcare-apps
-          INGRESS_NAME: healthcare-platform
+          APPOINTMENT_NAMESPACE: healthcare-apps
+          PATIENT_NAMESPACE: healthcare-apps
+          GRAFANA_NAMESPACE: monitoring
+          APPOINTMENT_SERVICE: appointment-service
+          PATIENT_SERVICE: patient-service
+          GRAFANA_SERVICE: observability-grafana
         run: |
           set -euo pipefail
-          HOST=$(kubectl -n "$NAMESPACE" get ingress "$INGRESS_NAME" -o jsonpath='{.spec.rules[0].host}')
-          ADDRESS=$(kubectl -n "$NAMESPACE" get ingress "$INGRESS_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          if [ -z "$ADDRESS" ]; then
-            ADDRESS=$(kubectl -n "$NAMESPACE" get ingress "$INGRESS_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          fi
-          URL="https://${HOST:-$ADDRESS}"
-          echo "ingress_url=${URL}" >> "$GITHUB_OUTPUT"
+
+          get_service_hostname() {
+            local namespace=$1
+            local service=$2
+            local host
+            host=$(kubectl -n "$namespace" get svc "$service" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+            if [ -z "$host" ]; then
+              host=$(kubectl -n "$namespace" get svc "$service" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+            fi
+            echo "$host"
+          }
+
+          APPT_HOST=$(get_service_hostname "$APPOINTMENT_NAMESPACE" "$APPOINTMENT_SERVICE")
+          PATIENT_HOST=$(get_service_hostname "$PATIENT_NAMESPACE" "$PATIENT_SERVICE")
+          GRAFANA_HOST=$(get_service_hostname "$GRAFANA_NAMESPACE" "$GRAFANA_SERVICE")
+
+          APPT_URL=${APPT_HOST:+http://$APPT_HOST}
+          PATIENT_URL=${PATIENT_HOST:+http://$PATIENT_HOST}
+          GRAFANA_URL=${GRAFANA_HOST:+http://$GRAFANA_HOST}
+
+          echo "appointment_url=${APPT_URL:-}" >> "$GITHUB_OUTPUT"
+          echo "patient_url=${PATIENT_URL:-}" >> "$GITHUB_OUTPUT"
+          echo "grafana_url=${GRAFANA_URL:-}" >> "$GITHUB_OUTPUT"
+
           {
-            echo "### Deployment URLs"
+            echo "### Load Balancer Endpoints"
             echo ""
-            echo "- Ingress Host: ${HOST:-N/A}"
-            echo "- Load Balancer: ${ADDRESS:-N/A}"
-            echo "- Base URL: ${URL}"
-            echo "- Grafana: ${URL}/grafana"
-            echo "- Appointment API: ${URL}/appointments"
-            echo "- Patient API: ${URL}/patients"
+            echo "- Appointment API: ${APPT_URL:-pending (provisioning)}"
+            echo "- Patient API: ${PATIENT_URL:-pending (provisioning)}"
+            echo "- Grafana: ${GRAFANA_URL:-pending (provisioning)}"
+            echo ""
+            echo "> If any endpoint shows 'pending', wait for AWS to finish provisioning the load balancer, then re-run this step or run \`kubectl get svc -n <ns>\` locally."
           } >> "$GITHUB_STEP_SUMMARY"

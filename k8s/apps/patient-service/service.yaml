@@ -7,8 +7,12 @@ metadata:
     app.kubernetes.io/name: patient-service
     app.kubernetes.io/component: api
     app.kubernetes.io/part-of: healthcare-platform
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
 spec:
-  type: ClusterIP
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
   selector:
     app.kubernetes.io/name: patient-service
   ports:
