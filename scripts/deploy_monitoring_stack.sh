@@ -50,6 +50,8 @@ else
   aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
 fi
 
+kubectl apply -k "$KUSTOMIZE_MONITORING_PATH"
+
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Configuring Helm repos..."
@@ -68,6 +70,7 @@ helm upgrade --install "$LOKI_RELEASE" grafana/loki-stack \
   --namespace "$NAMESPACE" \
   -f "$VALUES_DIR/loki-stack.values.yaml"
 
+echo "Monitoring services"
 echo "Monitoring components status:"
 kubectl get pods -n "$NAMESPACE"
 kubectl get svc -n "$NAMESPACE"
