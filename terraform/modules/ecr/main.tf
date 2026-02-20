@@ -1,6 +1,13 @@
-// Placeholder module for ECR registry per microservice.
-locals {
-  repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/app-placeholder"
-}
+resource "aws_ecr_repository" "app" {
+  name                 = "healthcare-app-${var.environment}"
+  image_tag_mutability = "MUTABLE"
 
-# TODO: Implement aws_ecr_repository definition and lifecycle policies.
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Service     = "healthcare-app"
+    Environment = var.environment
+  }
+}
