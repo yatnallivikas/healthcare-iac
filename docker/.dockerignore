@@ -1,0 +1,6 @@
+# Ignore everything not needed for the container build context.
+**/.terraform
+**/.git
+**/node_modules
+**/dist
+**/*.tfstate*
