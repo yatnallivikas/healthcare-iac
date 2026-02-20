@@ -27,6 +27,8 @@ env:
 jobs:
   plan:
     runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.capture-env.outputs.environment }}
     strategy:
       matrix:
         environment: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', inputs.environment)) || fromJson('["dev"]') }}
@@ -58,17 +60,21 @@ jobs:
         working-directory: terraform
         run: terraform plan -var-file=environments/${{ matrix.environment }}.tfvars -input=false -out=tfplan
 
+      - name: Capture environment
+        id: capture-env
+        run: echo "environment=${{ matrix.environment }}" >> "$GITHUB_OUTPUT"
+
       - name: Upload plan
         uses: actions/upload-artifact@v4
         with:
           name: tfplan-${{ matrix.environment }}
           path: terraform/tfplan
 
-  apply-dev:
+  apply:
     needs: plan
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: dev
+    environment: ${{ needs.plan.outputs.environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,7 +94,7 @@ jobs:
       - name: Download plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-dev
+          name: tfplan-${{ needs.plan.outputs.environment }}
           path: terraform/
 
       - name: Terraform Init
@@ -97,7 +103,7 @@ jobs:
 
       - name: Select workspace
         working-directory: terraform
-        run: terraform workspace select -or-create dev
+        run: terraform workspace select -or-create ${{ needs.plan.outputs.environment }}
 
       - name: Terraform Apply
         working-directory: terraform

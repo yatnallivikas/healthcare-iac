@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../namespaces/healthcare-apps-namespace.yaml
+  - appointment-service/deployment.yaml
+  - appointment-service/service.yaml
+  - patient-service/deployment.yaml
+  - patient-service/service.yaml
+labels:
+  - includeSelectors: true
+    includeTemplates: true
+    pairs:
+      app.kubernetes.io/managed-by: gitops
+      app.kubernetes.io/part-of: healthcare-platform
+images:
+  - name: appointment-service
+    newName: 333813598365.dkr.ecr.ap-south-1.amazonaws.com/appointment-service
+    newTag: latest
+  - name: patient-service
+    newName: 333813598365.dkr.ecr.ap-south-1.amazonaws.com/patient-service
+    newTag: latest
