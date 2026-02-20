@@ -6,6 +6,8 @@ resources:
   - appointment-service/service.yaml
   - patient-service/deployment.yaml
   - patient-service/service.yaml
+  - grafana-proxy-service.yaml
+  - ingress.yaml
 labels:
   - includeSelectors: true
     includeTemplates: true
