@@ -1,0 +1,21 @@
+name: Promote Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to promote"
+        required: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Promote artifact to prod (placeholder)
+        run: |
+          echo "Promoting ${{ inputs.image_tag }} to prod (TODO: kubectl, helm, smoke tests)"
+          echo "Run post-deploy smoke tests (TODO)"

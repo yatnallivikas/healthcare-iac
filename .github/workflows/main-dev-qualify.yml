@@ -1,0 +1,44 @@
+name: Main Dev Qualify
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_artifact:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.compute.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute image tag (placeholder)
+        id: compute
+        run: |
+          IMAGE_TAG="sha-${GITHUB_SHA::7}"
+          echo "IMAGE_TAG=${IMAGE_TAG}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+  deploy_dev:
+    runs-on: ubuntu-latest
+    needs: build_artifact
+    steps:
+      - name: Placeholder deployment to dev
+        run: |
+          IMAGE_TAG="${{ needs.build_artifact.outputs.image_tag }}"
+          echo "Deploying ${IMAGE_TAG} to dev (TODO: push to ECR, kubectl apply, rollout status)"
+
+  dev_qualification_tests:
+    runs-on: ubuntu-latest
+    needs:
+      - deploy_dev
+      - build_artifact
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run dev qualification tests
+        run: ./scripts/dev_qualification_tests.sh "${{ needs.build_artifact.outputs.image_tag }}"

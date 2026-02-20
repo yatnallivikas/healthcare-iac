@@ -1,11 +1,13 @@
 variable "project_name" {
   description = "Prefix for all resources"
   type        = string
+  default     = "placeholder-project"
 }
 
 variable "vpc_cidr" {
   description = "Network CIDR used in dev"
   type        = string
+  default     = "10.0.0.0/24"
 }
 
 variable "cluster_version" {

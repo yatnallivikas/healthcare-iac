@@ -1,0 +1,40 @@
+name: PR CI
+
+on:
+  pull_request:
+
+jobs:
+  terraform_checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform fmt -check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init/validate/plan (all environments)
+        run: |
+          set -euo pipefail
+          for env in dev staging prod; do
+            echo "::group::terraform ${env}"
+            terraform -chdir=terraform/environments/${env} init -backend=false
+            terraform -chdir=terraform/environments/${env} validate
+            terraform -chdir=terraform/environments/${env} plan -lock=false -input=false
+            echo "::endgroup::"
+          done
+
+  k8s_manifest_checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder manifest validation
+        run: |
+          echo "kustomize build overlays/dev (TODO)"
+          echo "kustomize build overlays/staging (TODO)"
+          echo "kustomize build overlays/prod (TODO)"
