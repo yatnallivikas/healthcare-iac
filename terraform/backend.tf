@@ -1,6 +1,9 @@
 terraform {
-  backend "local" {
-    // TODO: replace with remote backend such as S3 + DynamoDB for production state locking
-    path = "terraform.tfstate"
+  backend "s3" {
+    bucket         = "vikas-healthcare-tf-state-2026-xyz123"
+    key            = "global/terraform.tfstate"
+    region         = "ap-south-1"
+    dynamodb_table = "terraform-lock-table"
+    encrypt        = true
   }
 }
