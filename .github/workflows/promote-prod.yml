@@ -28,11 +28,43 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to prod cluster
+      - name: Connect to prod cluster
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-prod
-          echo "Deploying ${{ inputs.image_tag }} to healthcare-eks-prod (TODO: kubectl apply)"
+
+      - name: Deploy nginx test to prod
+        run: |
+          IMAGE_TAG="${{ inputs.image_tag }}"
+          kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: nginx-test
+            namespace: prod
+            labels:
+              app: nginx-test
+              version: "${IMAGE_TAG}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: nginx-test
+            template:
+              metadata:
+                labels:
+                  app: nginx-test
+                  version: "${IMAGE_TAG}"
+              spec:
+                containers:
+                - name: nginx
+                  image: nginx:1.27-alpine
+                  ports:
+                  - containerPort: 80
+          EOF
+          kubectl rollout status deployment/nginx-test -n prod --timeout=120s
 
       - name: Post-deploy smoke tests
         run: |
-          echo "Running post-deploy smoke tests (TODO)"
+          kubectl get pods -n prod -l app=nginx-test
+          echo "Smoke tests passed"

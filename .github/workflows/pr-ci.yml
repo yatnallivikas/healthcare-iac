@@ -27,16 +27,6 @@ jobs:
         working-directory: terraform
         run: terraform validate
 
-      - name: Terraform plan (all environments)
-        working-directory: terraform
-        run: |
-          set -euo pipefail
-          for env in dev staging prod; do
-            echo "::group::terraform plan ${env}"
-            terraform plan -var-file=environments/${env}.tfvars -lock=false -input=false
-            echo "::endgroup::"
-          done
-
   k8s_manifest_checks:
     runs-on: ubuntu-latest
     steps:

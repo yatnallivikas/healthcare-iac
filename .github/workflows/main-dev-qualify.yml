@@ -48,11 +48,41 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to dev cluster
+      - name: Connect to dev cluster
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-dev
+
+      - name: Deploy nginx test
         run: |
           IMAGE_TAG="${{ needs.build_artifact.outputs.image_tag }}"
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-dev
-          echo "Deploying ${IMAGE_TAG} to healthcare-eks-dev (TODO: kubectl apply)"
+          kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: nginx-test
+            namespace: dev
+            labels:
+              app: nginx-test
+              version: "${IMAGE_TAG}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: nginx-test
+            template:
+              metadata:
+                labels:
+                  app: nginx-test
+                  version: "${IMAGE_TAG}"
+              spec:
+                containers:
+                - name: nginx
+                  image: nginx:1.27-alpine
+                  ports:
+                  - containerPort: 80
+          EOF
+          kubectl rollout status deployment/nginx-test -n dev --timeout=120s
 
   dev_qualification_tests:
     runs-on: ubuntu-latest
@@ -79,8 +109,38 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to staging cluster
+      - name: Connect to staging cluster
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-staging
+
+      - name: Deploy nginx test to staging
         run: |
           IMAGE_TAG="${{ needs.build_artifact.outputs.image_tag }}"
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-staging
-          echo "Deploying ${IMAGE_TAG} to healthcare-eks-staging (TODO: kubectl apply)"
+          kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: nginx-test
+            namespace: staging
+            labels:
+              app: nginx-test
+              version: "${IMAGE_TAG}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: nginx-test
+            template:
+              metadata:
+                labels:
+                  app: nginx-test
+                  version: "${IMAGE_TAG}"
+              spec:
+                containers:
+                - name: nginx
+                  image: nginx:1.27-alpine
+                  ports:
+                  - containerPort: 80
+          EOF
+          kubectl rollout status deployment/nginx-test -n staging --timeout=120s
