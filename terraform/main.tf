@@ -40,3 +40,8 @@ module "eks" {
   node_min_size             = var.node_min_size
   node_max_size             = var.node_max_size
 }
+
+module "ecr" {
+  source      = "./modules/ecr"
+  environment = local.environment
+}

@@ -19,3 +19,4 @@ generatorOptions:
   labels:
     app.kubernetes.io/managed-by: kustomize
     monitoring: "true"
+      - dashboards/sample-dashboard.json

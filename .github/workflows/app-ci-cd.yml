@@ -1,0 +1,97 @@
+name: App CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  APPOINTMENT_ECR_REPO: appointment-service
+  PATIENT_ECR_REPO: patient-service
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repositories exist
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          for repo in appointment-service patient-service; do
+            if aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1; then
+              echo "ECR repo $repo already exists"
+            else
+              echo "Creating ECR repo $repo"
+              aws ecr create-repository --repository-name "$repo" --image-scanning-configuration scanOnPush=true --region "$AWS_REGION"
+            fi
+          done
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.1
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.1"
+
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: "5.4.2"
+
+      - name: Compute image tag
+        id: meta
+        run: |
+          IMAGE_TAG="sha-${GITHUB_SHA::7}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push service images
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          declare -A SERVICE_PATHS=(
+            ["appointment-service"]="code/appointment-service"
+            ["patient-service"]="code/patient-service"
+          )
+          for service in appointment-service patient-service; do
+            IMAGE="${ECR_REGISTRY}/${service}:${IMAGE_TAG}"
+            echo "Building ${service} -> ${IMAGE}"
+            docker build -t "${IMAGE}" "${SERVICE_PATHS[$service]}"
+            docker push "${IMAGE}"
+            if [[ "${service}" == "appointment-service" ]]; then
+              echo "APPOINTMENT_IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+            else
+              echo "PATIENT_IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+            fi
+          done
+
+      - name: Deploy to dev EKS
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          WORKSPACE: dev
+        run: |
+          ./scripts/deploy_apps_to_eks.sh

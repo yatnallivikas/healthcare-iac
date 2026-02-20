@@ -2,6 +2,8 @@ defaultRules:
   create: true
   rules:
     etcd: false
+    kubeScheduler: true
+    kubeControllerManager: true
     kubeProxy: false
 
 kubeControllerManager:
@@ -12,6 +14,7 @@ kubeProxy:
   enabled: false
 
 prometheusOperator:
+  tolerations: []
   admissionWebhooks:
     patch:
       enabled: true
@@ -28,6 +31,8 @@ prometheus:
       requests:
         cpu: 250m
         memory: 1Gi
+  ingress:
+    enabled: false
 
 alertmanager:
   enabled: true
@@ -46,6 +51,14 @@ grafana:
   enabled: true
   adminUser: admin
   adminPassword: CHANGEME-CHANGE
+
+nodeExporter:
+  enabled: true
+
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: CHANGEME-UPDATE-BEFORE-APPLY
   service:
     type: LoadBalancer
     port: 80
@@ -66,3 +79,12 @@ grafana:
     datasources:
       enabled: true
 
+      editable: false
+  sidecar:
+    dashboards:
+      enabled: true
+    datasources:
+      enabled: true
+
+rbac:
+  create: true
