@@ -5,6 +5,15 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "terraform/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
 
 jobs:
   build_artifact:
@@ -15,7 +24,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Compute image tag (placeholder)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Compute image tag
         id: compute
         run: |
           IMAGE_TAG="sha-${GITHUB_SHA::7}"
@@ -25,11 +40,19 @@ jobs:
   deploy_dev:
     runs-on: ubuntu-latest
     needs: build_artifact
+    environment: dev
     steps:
-      - name: Placeholder deployment to dev
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to dev cluster
         run: |
           IMAGE_TAG="${{ needs.build_artifact.outputs.image_tag }}"
-          echo "Deploying ${IMAGE_TAG} to dev (TODO: push to ECR, kubectl apply, rollout status)"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-dev
+          echo "Deploying ${IMAGE_TAG} to healthcare-eks-dev (TODO: kubectl apply)"
 
   dev_qualification_tests:
     runs-on: ubuntu-latest
@@ -42,3 +65,22 @@ jobs:
 
       - name: Run dev qualification tests
         run: ./scripts/dev_qualification_tests.sh "${{ needs.build_artifact.outputs.image_tag }}"
+
+  promote_staging:
+    runs-on: ubuntu-latest
+    needs:
+      - dev_qualification_tests
+      - build_artifact
+    environment: staging
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to staging cluster
+        run: |
+          IMAGE_TAG="${{ needs.build_artifact.outputs.image_tag }}"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-staging
+          echo "Deploying ${IMAGE_TAG} to healthcare-eks-staging (TODO: kubectl apply)"

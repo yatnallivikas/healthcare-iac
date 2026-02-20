@@ -13,20 +13,27 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.5.7
+          terraform_version: 1.8.1
 
       - name: Terraform fmt -check
         working-directory: terraform
         run: terraform fmt -check -recursive
 
-      - name: Terraform init/validate/plan (all environments)
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform plan (all environments)
+        working-directory: terraform
         run: |
           set -euo pipefail
           for env in dev staging prod; do
-            echo "::group::terraform ${env}"
-            terraform -chdir=terraform/environments/${env} init -backend=false
-            terraform -chdir=terraform/environments/${env} validate
-            terraform -chdir=terraform/environments/${env} plan -lock=false -input=false
+            echo "::group::terraform plan ${env}"
+            terraform plan -var-file=environments/${env}.tfvars -lock=false -input=false
             echo "::endgroup::"
           done
 

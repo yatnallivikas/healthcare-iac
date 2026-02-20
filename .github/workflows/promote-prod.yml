@@ -7,6 +7,13 @@ on:
         description: "Image tag to promote"
         required: true
 
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+
 jobs:
   promote:
     runs-on: ubuntu-latest
@@ -15,7 +22,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Promote artifact to prod (placeholder)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to prod cluster
         run: |
-          echo "Promoting ${{ inputs.image_tag }} to prod (TODO: kubectl, helm, smoke tests)"
-          echo "Run post-deploy smoke tests (TODO)"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name healthcare-eks-prod
+          echo "Deploying ${{ inputs.image_tag }} to healthcare-eks-prod (TODO: kubectl apply)"
+
+      - name: Post-deploy smoke tests
+        run: |
+          echo "Running post-deploy smoke tests (TODO)"
