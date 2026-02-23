@@ -29,7 +29,7 @@ VPC (10.0.0.0/16)
 | **EKS** | EKS cluster, managed node group, access entry + policy for caller | 4 |
 | **Total** | | **~34** |
 
-## Workspace to Cluster Mapping
+## Workspace to the Cluster Mapping
 
 | Workspace | Cluster Name | State Key |
 |-----------|-------------|-----------|
